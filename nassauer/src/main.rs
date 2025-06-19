@@ -2,12 +2,13 @@ use std::ptr;
 
 use anyhow::anyhow;
 use aya::{
-    maps::{Map, MapData, RingBuf},
+    maps::{MapData, RingBuf},
     programs::{tc, SchedClassifier, TcAttachType},
+    Ebpf,
 };
 use aya_log::EbpfLogger;
 use clap::Parser;
-use log::{debug, info};
+use log::{debug, error, info};
 use nassauer_common::NeighborSolicit;
 use tokio::io::unix::AsyncFd; // (1)
 use tokio_util::sync::CancellationToken;
@@ -49,55 +50,65 @@ async fn main() -> Result<(), anyhow::Error> {
     // Step 2: Clone the token for use in another task
     let cloned_token = token.clone();
 
-    let ring_handle = tokio::spawn(async move {
-        let map = match bpf.map_mut("SOLICIT") {
-            Some(m) => m,
-            None => return Err(anyhow!("missing bpf map SOLICIT")),
-        };
-        let ring_buf = RingBuf::try_from(map)?;
-        tokio::select! {
-            // Step 3: Using cloned token to listen to cancellation requests
-            _ = cloned_token.cancelled() => {
-                return Err(anyhow!("token canceled"))
-            }
-            res = read_solicitiations(ring_buf)  => {
-                match res {
-                    Ok(_) => Ok(()),
-                    Err(e) => return Err(e),
-                }
-            }
-        }
+    let mut responder = NeighborSolicitationResponder::new(&mut bpf)?;
+
+    tokio::spawn(async move {
+        responder.run(cloned_token).await;
     });
 
-    tokio::select! {
-    _ = wait_for_signal() => {
-    info!("signal exit completed");
-        token.cancel();
-
-        }
-        res = ring_handle => match res {
-        Ok(res) => match res {
-            Ok(_) => (),
-            Err(e) => return Err(anyhow!(e)),
-        },
-        Err(e) => return Err(anyhow!(e)),
-        }
-        }
+    wait_for_signal().await;
+    token.cancel();
 
     info!("Exiting...");
-
     Ok(())
 }
 
-async fn read_solicitiations(ring_buf: RingBuf<&mut MapData>) -> Result<(), anyhow::Error> {
-    let mut async_fd = AsyncFd::new(ring_buf)?;
-    loop {
-        let mut guard = async_fd.readable_mut().await?;
-        let ring_buf = guard.get_inner_mut();
-        while let Some(item) = ring_buf.next() {
-            let solicit = unsafe { ptr::read_unaligned(item.as_ptr() as *const NeighborSolicit) };
-            info!("retrieved neighbor solicitation {:?}", solicit)
+struct NeighborSolicitationResponder {
+    ring_buf_fd: AsyncFd<RingBuf<MapData>>,
+}
+
+impl NeighborSolicitationResponder {
+    fn new(bpf: &mut Ebpf) -> Result<Self, anyhow::Error> {
+        let map = bpf
+            .take_map("SOLICIT")
+            .ok_or(anyhow!("missing bpf map SOLICIT"))?;
+        let ring_buf = RingBuf::try_from(map)?;
+        let async_fd = AsyncFd::new(ring_buf)?;
+        Ok(NeighborSolicitationResponder {
+            ring_buf_fd: async_fd,
+        })
+    }
+
+    async fn run(&mut self, token: CancellationToken) {
+        loop {
+            tokio::select! {
+                _ = token.cancelled() => {
+                    break;
+                }
+                res = self.read_solicitiation() => {
+                    match res {
+                        Ok(opt) => {
+                            if let Some(solict) = opt {
+                                info!("Received solicitation: {solict:?}")
+                            }
+                        }
+                        Err(err) => {
+                            error!("receiving solicitation: {err}")
+                        }
+                    };
+                }
+            }
         }
+    }
+
+    async fn read_solicitiation(&mut self) -> Result<Option<NeighborSolicit>, anyhow::Error> {
+        let mut guard = self.ring_buf_fd.readable_mut().await?;
+        let ring_buf = guard.get_inner_mut();
+        if let Some(item) = ring_buf.next() {
+            let solicit = unsafe { ptr::read_unaligned(item.as_ptr() as *const NeighborSolicit) };
+            return Ok(Some(solicit));
+        }
+        Ok(None)
     }
 }
 
@@ -110,7 +121,7 @@ async fn wait_for_signal() {
     let mut signal_interrupt = signal(SignalKind::interrupt()).unwrap();
 
     tokio::select! {
-        _ = signal_terminate.recv() => debug!("Received SIGTERM."),
-        _ = signal_interrupt.recv() => debug!("Received SIGINT."),
+        _ = signal_terminate.recv() => info!("Received SIGTERM."),
+        _ = signal_interrupt.recv() => info!("Received SIGINT."),
     };
 }

@@ -1,5 +1,7 @@
 CARGO_FLAGS := 
 
+run:
+	docker run --cap-add BPF --cap-add SYS_ADMIN --cap-add NET_ADMIN nassauer 
 image: build-image
 	docker build -t nassauer --build-arg OPTIMIZATION=debug .
 

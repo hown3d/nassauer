@@ -8,6 +8,8 @@ ARG TARGETARCH
 ARG BPF_LINKER_VERSION="0.9.14"
 ARG LLVM_VERSION=20
 
+RUN apt-get update && apt-get install -y bpftool
+
 RUN bash -c \
   "if [[ ${TARGETARCH} = arm64 ]]; then \
   apt-get update && apt-get install -y lsb-release software-properties-common && \
@@ -20,8 +22,9 @@ RUN export PATH=$PATH:/usr/local/cargo/bin
 
 RUN rustup component add rust-src --toolchain nightly-$(uname -m)-unknown-linux-gnu 
 RUN rustup component add rustfmt 
+RUN rustup default nightly
+RUN rustup component add rust-analyzer
 
-RUN apt-get update && apt-get install -y bpftool
 
 # RUN apk add libffi-dev libgcc libstdc++-dev musl-dev gcompat
 RUN bash -c \

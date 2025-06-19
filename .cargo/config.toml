@@ -1,2 +1,2 @@
-[env]
-OUT_DIR = "../../target/bpfel-unknown-none/release"
+[build]
+target = "aarch64-unknown-linux-gnu"
