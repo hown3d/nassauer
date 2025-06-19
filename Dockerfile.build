@@ -1,0 +1,34 @@
+# FROM rustlang/rust:nightly-alpine AS build
+FROM rustlang/rust:nightly-bookworm AS build
+
+ARG TARGETARCH
+
+# 0.9.14 updates llvm-sys crate to 201.0.0-rc1 which needs llvm20 installed on the system.
+# https://github.com/aya-rs/bpf-linker/pull/259/files
+ARG BPF_LINKER_VERSION="0.9.14"
+ARG LLVM_VERSION=20
+
+RUN bash -c \
+  "if [[ ${TARGETARCH} = arm64 ]]; then \
+  apt-get update && apt-get install -y lsb-release software-properties-common && \
+  wget https://apt.llvm.org/llvm.sh && \
+  chmod +x llvm.sh && \
+  ./llvm.sh ${LLVM_VERSION} all; \
+  fi"
+
+RUN export PATH=$PATH:/usr/local/cargo/bin
+
+RUN rustup component add rust-src --toolchain nightly-$(uname -m)-unknown-linux-gnu 
+RUN rustup component add rustfmt 
+
+RUN apt-get update && apt-get install -y bpftool
+
+# RUN apk add libffi-dev libgcc libstdc++-dev musl-dev gcompat
+RUN bash -c \
+  "if [[ ${TARGETARCH} = arm64 ]]; then \
+  cargo install bpf-linker@${BPF_LINKER_VERSION} --no-default-features; \
+  else \
+  cargo install bpf-linker@${BPF_LINKER_VERSION}; \
+  fi"
+
+

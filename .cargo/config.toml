@@ -1,0 +1,2 @@
+[env]
+OUT_DIR = "../../target/bpfel-unknown-none/release"

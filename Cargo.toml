@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = ["nassauer-ebpf", "nassauer", "nassauer-common"]
+
+[workspace.package]
+license = "MIT OR Apache-2.0"
+
+[profile.release.package.nassauer-ebpf]
+debug = 2
+codegen-units = 1
