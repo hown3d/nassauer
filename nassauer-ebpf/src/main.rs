@@ -38,14 +38,12 @@ fn try_nassauer(ctx: TcContext) -> Result<i32, ()> {
         _ => return Ok(TC_ACT_OK),
     }
 
-    info!(&ctx, "received a ipv6 packet");
     let ip_hdr: Ipv6Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
     match ip_hdr.next_hdr {
         IpProto::Ipv6Icmp => (),
         _ => return Ok(TC_ACT_OK),
     }
 
-    info!(&ctx, "ipv6 icmp proto");
     let icmp_hdr: Icmp6Hdr = ctx.load(EthHdr::LEN + Ipv6Hdr::LEN).map_err(|_| ())?;
     match icmp_hdr.type_ {
         ICMP_NEIGHBOR_SOLICITATION_TYPE => (),
