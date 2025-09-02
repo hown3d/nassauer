@@ -4,7 +4,7 @@
 use aya_ebpf::{
     bindings::{TC_ACT_OK, TC_ACT_SHOT},
     macros::{classifier, map},
-    maps::RingBuf,
+    maps::{lpm_trie, LpmTrie, RingBuf},
     programs::TcContext,
 };
 use aya_log_ebpf::info;
@@ -19,6 +19,9 @@ const ICMP_NEIGHBOR_SOLICITATION_TYPE: u8 = 135;
 
 #[no_mangle]
 static VERSION: i32 = 0;
+
+#[map]
+static IPV6_PREFIXES: LpmTrie<nassauer_common::LpmIpv6Key, u8> = LpmTrie::with_max_entries(1024, 0);
 
 #[map]
 static SOLICIT: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
@@ -56,18 +59,28 @@ fn try_nassauer(ctx: TcContext) -> Result<i32, ()> {
         .map_err(|_| ())?;
 
     let target_addr = neighbor_solicit_msg.target_addr();
-    let ns = NeighborSolicit {
-        target_addr,
-        dest_addr: ip_hdr.dst_addr(),
-        router_addr: ip_hdr.src_addr(),
-        router_mac: MacAddr::from(eth_hdr.src_addr),
-    };
-    if let Some(mut buf) = SOLICIT.reserve::<NeighborSolicit>(0) {
-        buf.write(ns);
-        unsafe {
-            buf.assume_init();
+
+    // Create the key for the LPM lookup.
+    // The prefix length must be the maximum possible (128 for IPv6)
+    // to find the *longest matching* prefix.
+    // Perform the lookup in the LPM map
+    let key = lpm_trie::Key::new(128, target_addr.into());
+    info!(&ctx, "checking lpm trie for address {}", target_addr);
+    if IPV6_PREFIXES.get(&key).is_some() {
+        info!(&ctx, "Matched IP {}", target_addr);
+        let ns = NeighborSolicit {
+            target_addr,
+            dest_addr: ip_hdr.dst_addr(),
+            router_addr: ip_hdr.src_addr(),
+            router_mac: MacAddr::from(eth_hdr.src_addr),
+        };
+        if let Some(mut buf) = SOLICIT.reserve::<NeighborSolicit>(0) {
+            buf.write(ns);
+            unsafe {
+                buf.assume_init();
+            }
+            buf.submit(0);
         }
-        buf.submit(0);
     }
 
     Ok(TC_ACT_SHOT)

@@ -1,8 +1,8 @@
-use std::{ptr, u8};
+use std::{net::Ipv6Addr, ptr, str::FromStr, u8};
 
 use anyhow::anyhow;
 use aya::{
-    maps::{MapData, RingBuf},
+    maps::{lpm_trie, LpmTrie, MapData, RingBuf},
     programs::{tc, SchedClassifier, TcAttachType},
     Ebpf,
 };
@@ -53,7 +53,11 @@ async fn main() -> Result<(), anyhow::Error> {
     // runtime. This approach is recommended for most real-world use cases. If you would
     // like to specify the eBPF program at runtime rather than at compile-time, you can
     // reach for `Ebpf::load_file` instead.
-    let mut bpf = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
+
+    let ip6 = Ipv6Addr::from_str("fe80::").map_err(|e| anyhow!(e))?;
+
+    let ip6net = ipnet::Ipv6Net::new_assert(ip6, 16);
+    let mut bpf = aya::EbpfLoader::new().load(aya::include_bytes_aligned!(concat!(
         "../../target/bpfel-unknown-none/release/nassauer-ebpf"
     )))?;
 
@@ -67,6 +71,20 @@ async fn main() -> Result<(), anyhow::Error> {
     program.load()?;
     info!("attaching program to {}", &opt.iface);
     program.attach(&opt.iface, TcAttachType::Ingress)?;
+
+    // Get a mutable handle to the LPM map.
+    let mut prefixes: LpmTrie<&mut MapData, nassauer_common::LpmIpv6Key, u8> =
+        LpmTrie::try_from(bpf.map_mut("IPV6_PREFIXES").unwrap())?;
+
+    info!("filtering for ipv6 prefix {ip6net}");
+
+    let key = lpm_trie::Key::new(u32::from(ip6net.prefix_len()), ip6.into());
+    prefixes.insert(&key, 1, 0)?;
+    debug!(
+        "inserted into lpm_trie with ipv6 {:x} and  prefix {}",
+        u128::from(ip6),
+        ip6net.prefix_len(),
+    );
 
     // Step 1: Create a new CancellationToken
     let token = CancellationToken::new();
