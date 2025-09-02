@@ -9,6 +9,9 @@ user = ["aya"]
 
 [dependencies]
 aya = { git = "https://github.com/aya-rs/aya", optional = true }
+# not able to use yet since it's not released and consuming pnet_base without the bundle is not nice
+# will need to wait for a released version to use with no_std
+# pnet_base = { git = "https://github.com/libpnet/libpnet.git", rev = "46aa3aca5cd925ebeca4aeae9527b18f0e7aa159", default-features = false }
 
 [lib]
 path = "src/lib.rs"

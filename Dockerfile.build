@@ -1,35 +1,25 @@
-# FROM rustlang/rust:nightly-alpine AS build
 FROM rustlang/rust:nightly-bookworm AS build
 
 ARG TARGETARCH
 
-# 0.9.14 updates llvm-sys crate to 201.0.0-rc1 which needs llvm20 installed on the system.
-# https://github.com/aya-rs/bpf-linker/pull/259/files
-ARG BPF_LINKER_VERSION="0.9.14"
-ARG LLVM_VERSION=20
-
-RUN apt-get update && apt-get install -y bpftool
+ARG BPF_LINKER_VERSION="0.9.15"
+ARG LLVM_VERSION=21
 
 RUN bash -c \
+  # linux arm64 does not work with rusts llvm version. Need to install external LLVM
   "if [[ ${TARGETARCH} = arm64 ]]; then \
-  apt-get update && apt-get install -y lsb-release software-properties-common && \
-  wget https://apt.llvm.org/llvm.sh && \
-  chmod +x llvm.sh && \
-  ./llvm.sh ${LLVM_VERSION} all; \
+  # based on https://github.com/aya-rs/bpf-linker/blob/c10771d161efe9de374d5bc3b47151e616b08d18/.github/workflows/ci.yml#L122-L141
+  wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key |  tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
+  echo -e deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${LLVM_VERSION} main | tee /etc/apt/sources.list.d/llvm.list; \
+  apt update && apt -y install llvm-${LLVM_VERSION}-dev libpolly-${LLVM_VERSION}-dev; \
+  export PATH=$PATH:/usr/lib/llvm-${LLVM_VERSION}/bin; \
   fi"
 
-RUN export PATH=$PATH:/usr/local/cargo/bin
-
 RUN rustup component add rust-src --toolchain nightly-$(uname -m)-unknown-linux-gnu 
-RUN rustup component add rustfmt 
-RUN rustup default nightly
-RUN rustup component add rust-analyzer
 
-
-# RUN apk add libffi-dev libgcc libstdc++-dev musl-dev gcompat
 RUN bash -c \
   "if [[ ${TARGETARCH} = arm64 ]]; then \
-  cargo install bpf-linker@${BPF_LINKER_VERSION} --no-default-features; \
+  cargo install bpf-linker@${BPF_LINKER_VERSION} --no-default-features --features llvm-${LLVM_VERSION}; \
   else \
   cargo install bpf-linker@${BPF_LINKER_VERSION}; \
   fi"

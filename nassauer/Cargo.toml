@@ -9,6 +9,7 @@ aya = { git = "https://github.com/aya-rs/aya", features = ["async_tokio"] }
 aya-log = { git = "https://github.com/aya-rs/aya" }
 anyhow = "1"
 clap = { version = "4.1", features = ["derive"] }
+pnet = "0.35.0"
 log = "0.4"
 tokio-util = "0.7.15"
 nassauer-common = { path = "../nassauer-common/", features = ["user"] }
@@ -36,7 +37,7 @@ anyhow = "1"
 # Finally note that *any* usage of `artifact = ...` in *any* Cargo.toml in the workspace breaks
 # workflows with stable cargo; stable cargo outright refuses to load manifests that use unstable
 # features.
-nassauer-ebpf = { path = "../nassauer-ebpf" }
+# nassauer-ebpf = { path = "../nassauer-ebpf" }
 
 [[bin]]
 name = "nassauer"

@@ -8,7 +8,7 @@ use aya_ebpf::{
     programs::TcContext,
 };
 use aya_log_ebpf::info;
-use nassauer_common::NeighborSolicit;
+use nassauer_common::{MacAddr, NeighborSolicit};
 use nassauer_ebpf::{Icmp6Hdr, NeighborSolicitMessage};
 use network_types::{
     eth::{EthHdr, EtherType},
@@ -60,7 +60,7 @@ fn try_nassauer(ctx: TcContext) -> Result<i32, ()> {
         target_addr,
         dest_addr: ip_hdr.dst_addr(),
         router_addr: ip_hdr.src_addr(),
-        router_mac: eth_hdr.src_addr,
+        router_mac: MacAddr::from(eth_hdr.src_addr),
     };
     if let Some(mut buf) = SOLICIT.reserve::<NeighborSolicit>(0) {
         buf.write(ns);
