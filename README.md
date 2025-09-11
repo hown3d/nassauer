@@ -1,14 +1,11 @@
 # nassauer
 
 Nassauer is a ndp-responder using eBPF.
+It is heavily inspired by [github.com/yoursunny/ndpresponder](https://github.com/yoursunny/ndpresponder/tree/main) but using eBPF and filtering more in kernel space.
 
 ## Build & Run
 
-To build a docker image, use `make image`. You can start the image like so:
-
-```
- docker run --privileged -e RUST_LOG="debug" --rm -ti nassauer
-```
+To build a docker image, use `make image`. You can start the image with `make run`:
 
 ## License
 

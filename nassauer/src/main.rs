@@ -40,7 +40,9 @@ const PKT_MAC_SIZE: usize = 6;
 #[derive(Debug, Parser)]
 struct Opt {
     #[clap(short, long, default_value = "eth0")]
-    iface: String, // (2)
+    iface: String,
+    #[clap(short, long)]
+    prefix: String,
 }
 
 #[tokio::main] // (3)
@@ -54,9 +56,7 @@ async fn main() -> Result<(), anyhow::Error> {
     // like to specify the eBPF program at runtime rather than at compile-time, you can
     // reach for `Ebpf::load_file` instead.
 
-    let ip6 = Ipv6Addr::from_str("fe80::").map_err(|e| anyhow!(e))?;
-
-    let ip6net = ipnet::Ipv6Net::new_assert(ip6, 16);
+    let ip6net = ipnet::Ipv6Net::from_str(&opt.prefix).map_err(|e| anyhow!(e))?;
     let mut bpf = aya::EbpfLoader::new().load(aya::include_bytes_aligned!(concat!(
         "../../target/bpfel-unknown-none/release/nassauer-ebpf"
     )))?;
@@ -78,11 +78,11 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("filtering for ipv6 prefix {ip6net}");
 
-    let key = lpm_trie::Key::new(u32::from(ip6net.prefix_len()), ip6.into());
+    let key = lpm_trie::Key::new(u32::from(ip6net.prefix_len()), ip6net.addr().into());
     prefixes.insert(&key, 1, 0)?;
     debug!(
-        "inserted into lpm_trie with ipv6 {:x} and  prefix {}",
-        u128::from(ip6),
+        "inserted into lpm_trie with ipv6 {:x} and prefix {}",
+        u128::from(ip6net.addr()),
         ip6net.prefix_len(),
     );
 

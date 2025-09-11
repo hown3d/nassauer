@@ -1,5 +1,4 @@
 FROM rustlang/rust:nightly-bookworm AS build
-
 ARG TARGETARCH
 
 ARG BPF_LINKER_VERSION="0.9.15"
