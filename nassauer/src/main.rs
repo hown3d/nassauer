@@ -61,7 +61,17 @@ async fn main() -> Result<(), anyhow::Error> {
         "../../target/bpfel-unknown-none/release/nassauer-ebpf"
     )))?;
 
-    EbpfLogger::init(&mut bpf)?;
+    let log = EbpfLogger::init(&mut bpf)?;
+    let mut log =
+        tokio::io::unix::AsyncFd::with_interest(log, tokio::io::Interest::READABLE).unwrap();
+    tokio::task::spawn(async move {
+        loop {
+            let mut guard = log.readable_mut().await.unwrap();
+            guard.get_inner_mut().flush();
+            guard.clear_ready();
+        }
+    });
+
     let _ = tc::qdisc_add_clsact(&opt.iface);
     let program: &mut SchedClassifier = match bpf.program_mut("nassauer") {
         Some(prog) => prog.try_into()?,
