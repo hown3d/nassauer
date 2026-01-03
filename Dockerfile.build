@@ -11,10 +11,11 @@ RUN bash -c \
   wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key |  tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
   echo -e deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${LLVM_VERSION} main | tee /etc/apt/sources.list.d/llvm.list; \
   apt update && apt -y install llvm-${LLVM_VERSION}-dev libpolly-${LLVM_VERSION}-dev; \
-  export PATH=$PATH:/usr/lib/llvm-${LLVM_VERSION}/bin; \
   fi"
 
 RUN rustup component add rust-src --toolchain nightly-$(uname -m)-unknown-linux-gnu 
+
+ENV PATH="$PATH:/usr/lib/llvm-${LLVM_VERSION}/bin"
 
 RUN bash -c \
   "if [[ ${TARGETARCH} = arm64 ]]; then \

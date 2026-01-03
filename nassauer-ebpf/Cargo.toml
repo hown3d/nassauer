@@ -6,8 +6,8 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-aya-ebpf = { git = "https://github.com/aya-rs/aya" }
-aya-log-ebpf = { git = "https://github.com/aya-rs/aya" }
+aya-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
+aya-log-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
 nassauer-common = { path = "../nassauer-common" }
 network-types = "0.0.8"
 
