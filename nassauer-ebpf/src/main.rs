@@ -1,13 +1,15 @@
 #![no_std]
 #![no_main]
 
+use core::net::Ipv6Addr;
+
 use aya_ebpf::{
     bindings::{TC_ACT_OK, TC_ACT_SHOT},
     macros::{classifier, map},
     maps::{lpm_trie, LpmTrie, RingBuf},
     programs::TcContext,
 };
-use aya_log_ebpf::info;
+use aya_log_ebpf::{debug, info};
 use nassauer_common::{MacAddr, NeighborSolicit};
 use nassauer_ebpf::{Icmp6Hdr, NeighborSolicitMessage};
 use network_types::{
@@ -21,13 +23,14 @@ const ICMP_NEIGHBOR_SOLICITATION_TYPE: u8 = 135;
 static VERSION: i32 = 0;
 
 #[map]
-static IPV6_PREFIXES: LpmTrie<nassauer_common::LpmIpv6Key, u8> = LpmTrie::with_max_entries(1024, 0);
+static IPV6_PREFIXES: LpmTrie<Ipv6Addr, u8> = LpmTrie::with_max_entries(1024, 0);
 
 #[map]
 static SOLICIT: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
 
 #[classifier]
 pub fn nassauer(ctx: TcContext) -> i32 {
+    debug!(&ctx, "retrieved packet");
     match try_nassauer(ctx) {
         Ok(ret) => ret,
         Err(_) => TC_ACT_SHOT,
