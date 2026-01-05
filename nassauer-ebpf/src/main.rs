@@ -5,8 +5,9 @@ use core::net::Ipv6Addr;
 
 use aya_ebpf::{
     bindings::{TC_ACT_OK, TC_ACT_SHOT},
-    macros::{classifier, map},
-    maps::{lpm_trie, LpmTrie, RingBuf},
+    btf_maps::RingBuf,
+    macros::{btf_map, classifier, map},
+    maps::{lpm_trie, LpmTrie},
     programs::TcContext,
 };
 use aya_log_ebpf::{debug, info};
@@ -25,8 +26,8 @@ static VERSION: i32 = 0;
 #[map]
 static IPV6_PREFIXES: LpmTrie<Ipv6Addr, u8> = LpmTrie::with_max_entries(1024, 0);
 
-#[map]
-static SOLICIT: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
+#[btf_map]
+static SOLICIT: RingBuf<nassauer_common::NeighborSolicit, { 256 * 1024 }, 0> = RingBuf::new();
 
 #[classifier]
 pub fn nassauer(ctx: TcContext) -> i32 {
@@ -86,7 +87,7 @@ fn try_nassauer(ctx: TcContext) -> Result<i32, ()> {
             router_addr: ip_hdr.src_addr(),
             router_mac: MacAddr::from(eth_hdr.src_addr),
         };
-        if let Some(mut buf) = SOLICIT.reserve::<NeighborSolicit>(0) {
+        if let Some(mut buf) = SOLICIT.reserve(0) {
             buf.write(ns);
             unsafe {
                 buf.assume_init();

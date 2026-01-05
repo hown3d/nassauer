@@ -8,9 +8,35 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
+
+type nassauerNeighborSolicit struct {
+	_         structs.HostLayout
+	RouterMac struct {
+		_ structs.HostLayout
+		A uint8
+		B uint8
+		C uint8
+		D uint8
+		E uint8
+		F uint8
+	}
+	RouterAddr struct {
+		_      structs.HostLayout
+		Octets [16]uint8
+	}
+	DestAddr struct {
+		_      structs.HostLayout
+		Octets [16]uint8
+	}
+	TargetAddr struct {
+		_      structs.HostLayout
+		Octets [16]uint8
+	}
+}
 
 // loadNassauer returns the embedded CollectionSpec for nassauer.
 func loadNassauer() (*ebpf.CollectionSpec, error) {

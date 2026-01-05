@@ -8,3 +8,6 @@ license = "MIT OR Apache-2.0"
 [profile.release.package.nassauer-ebpf]
 debug = 2
 codegen-units = 1
+
+[patch."https://github.com/aya-rs/aya"]
+aya-ebpf = { path = "../../aya-rs/aya/ebpf/aya-ebpf" }
