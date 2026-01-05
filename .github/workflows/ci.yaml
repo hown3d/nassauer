@@ -21,6 +21,7 @@ jobs:
       with:
         components: rust-src,clippy,rustfmt,
     - uses: Swatinem/rust-cache@v2
+      if: always() 
 
     - run: cargo install --git https://github.com/aya-rs/bpf-linker.git bpf-linker --features llvm-21
     - run: cargo install cargo2junit
