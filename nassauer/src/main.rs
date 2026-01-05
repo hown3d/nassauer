@@ -83,12 +83,15 @@ async fn main() -> Result<(), anyhow::Error> {
     program.attach(&opt.iface, TcAttachType::Ingress)?;
 
     // Get a mutable handle to the LPM map.
-    let mut prefixes: LpmTrie<&mut MapData, nassauer_common::LpmIpv6Key, u8> =
+    let mut prefixes: LpmTrie<&mut MapData, u128, u8> =
         LpmTrie::try_from(bpf.map_mut("IPV6_PREFIXES").unwrap())?;
 
     info!("filtering for ipv6 prefix {ip6net}");
 
-    let key = lpm_trie::Key::new(u32::from(ip6net.prefix_len()), ip6net.addr().into());
+    let key = lpm_trie::Key::new(
+        u32::from(ip6net.prefix_len()),
+        ip6net.addr().to_bits().to_be(),
+    );
     prefixes.insert(&key, 1, 0)?;
     debug!(
         "inserted into lpm_trie with ipv6 {:x} and prefix {}",

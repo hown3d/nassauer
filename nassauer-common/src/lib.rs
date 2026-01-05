@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::{fmt, net::Ipv6Addr};
+use core::fmt;
 
 // use pnet_base::MacAddr;
 #[derive(fmt::Debug, Copy, Clone)]
@@ -54,18 +54,6 @@ impl fmt::Debug for MacAddr {
     }
 }
 
-#[repr(C)]
-#[derive(fmt::Debug, Copy, Clone)]
-pub struct LpmIpv6Key {
-    pub address: Ipv6Addr,
-}
-
-impl From<Ipv6Addr> for LpmIpv6Key {
-    fn from(value: Ipv6Addr) -> Self {
-        LpmIpv6Key { address: value }
-    }
-}
-
 #[cfg(feature = "user")]
 pub mod user {
 
@@ -74,5 +62,4 @@ pub mod user {
     // Pod = Plan old data
     unsafe impl aya::Pod for NeighborSolicit {}
     unsafe impl aya::Pod for MacAddr {}
-    unsafe impl aya::Pod for LpmIpv6Key {}
 }
