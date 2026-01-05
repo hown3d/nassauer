@@ -1,5 +1,8 @@
 name: Rust
 
+permissions:
+  checks: write
+
 on:
   push:
     branches: [ "main" ]
@@ -17,6 +20,7 @@ jobs:
     - uses: dtolnay/rust-toolchain@nightly
       with:
         components: rust-src,clippy,rustfmt,
+    - uses: Swatinem/rust-cache@v2
 
     - run: cargo install --git https://github.com/aya-rs/bpf-linker.git bpf-linker --features llvm-21
     - run: cargo install cargo2junit
@@ -24,7 +28,6 @@ jobs:
     - name: generate 
       run: make generate-rust
 
-    - uses: Swatinem/rust-cache@v2
 
     - name: cargo test
       env: 
@@ -36,12 +39,6 @@ jobs:
 
     - name: clippy
       run: cargo clippy --all --all-features --tests -- -D warnings
-
-    - name: Prepare junit report
-      id: cargo_reporter 
-      uses: innoq/action-cargo-test-report@main
-      with:
-        cargo-test-report-json: 'results.json'
 
     - name: Publish Test Report
       uses: mikepenz/action-junit-report@main
