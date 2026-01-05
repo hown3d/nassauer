@@ -1,0 +1,82 @@
+name: Rust
+
+permissions:
+  checks: write
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rust-src,clippy,rustfmt,
+    - uses: Swatinem/rust-cache@v2
+      if: always() 
+
+    - run: cargo install --git https://github.com/aya-rs/bpf-linker.git bpf-linker --features llvm-21
+    - run: cargo install cargo2junit
+
+    - name: generate 
+      run: make generate-rust
+
+
+    - name: cargo test
+      env: 
+        RUSTC_BOOTSTRAP: 1
+      run: cargo test --workspace --exclude nassauer-ebpf -- -Z unstable-options --format json --report-time | cargo2junit > result.xml
+
+    - name: rustfmt
+      run: cargo fmt --all -- --check
+
+    - name: clippy
+      run: cargo clippy --all --all-features --tests -- -D warnings
+
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@main
+      if: always() # always run even if the previous step fails
+      with:
+        check_name: Test Report
+        fail_on_failure: true
+        require_tests: true
+        report_paths: result.xml
+
+  test-ebpf:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
+        cache-dependency-path: "tests/go.sum"
+    - uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rust-src
+
+    # Installed *after* nightly so it is the default.
+    - uses: dtolnay/rust-toolchain@stable
+
+    - uses: Swatinem/rust-cache@v2
+
+    - run: cargo install --git https://github.com/aya-rs/bpf-linker.git bpf-linker --features llvm-21
+
+    - name: generate 
+      run: |
+        set -euo pipefail
+        make generate
+
+    - name: test 
+      run: |
+        sudo make test-ebpf
+
+
