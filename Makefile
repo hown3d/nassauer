@@ -30,6 +30,9 @@ generate-ebpf-in-docker:
 	docker run -v $(PWD):/work -w /work builder-image \
 		make generate-ebpf
 
+clippy:
+	cargo clippy -p nassauer
+
 ifeq ($(KERNEL), Linux)
 test-rust: 
 	cargo test --workspace --exclude nassauer-ebpf

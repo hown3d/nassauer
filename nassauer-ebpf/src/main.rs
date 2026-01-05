@@ -76,7 +76,7 @@ fn try_nassauer(ctx: TcContext) -> Result<i32, ()> {
     // The prefix length must be the maximum possible (128 for IPv6)
     // to find the *longest matching* prefix.
     // Perform the lookup in the LPM map
-    let key = lpm_trie::Key::new(128, target_addr.into());
+    let key = lpm_trie::Key::new(128, target_addr);
     info!(&ctx, "checking lpm trie for address {}", target_addr);
     if IPV6_PREFIXES.get(&key).is_some() {
         info!(&ctx, "Matched IP {}", target_addr);

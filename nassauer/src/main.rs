@@ -1,4 +1,4 @@
-use std::{net::Ipv6Addr, ptr, str::FromStr, u8};
+use std::{ptr, str::FromStr};
 
 use anyhow::anyhow;
 use aya::{
